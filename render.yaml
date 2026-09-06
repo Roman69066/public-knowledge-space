@@ -15,7 +15,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    startCommand: node server.js
+    startCommand: dockerCommand: node server.js
     envVars:
       - key: DATABASE_URL
         sync: false   # 在Render网页界面里手动填入Supabase的连接串
