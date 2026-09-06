@@ -1,0 +1,39 @@
+# render.yaml — Render "Blueprint" 一键部署配置
+#
+# 使用方式：在 Render 里选 "New +" → "Blueprint"，连接放了这份代码的
+# GitHub仓库，Render会自动读取这个文件，创建下面定义的两个服务。
+# 你只需要在Render的网页界面里，给下面标了 sync: false 的两个环境变量
+# 填入真实值（DATABASE_URL来自Supabase，ANTHROPIC_API_KEY是你自己的key）。
+#
+# 数据库不在这里定义：本项目需要pgvector扩展，Render自带的Postgres
+# 不保证支持，所以数据库请单独用Supabase创建（免费额度），
+# 把连接串填进下面的DATABASE_URL即可。
+
+services:
+  - type: web
+    name: pnks-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    startCommand: node server.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # 在Render网页界面里手动填入Supabase的连接串
+      - key: ANTHROPIC_API_KEY
+        sync: false   # 在Render网页界面里手动填入你的真实key
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
+
+  - type: worker
+    name: pnks-worker
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerCommand: node worker.js render-worker-1
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # 和上面web服务填同一个Supabase连接串
+      - key: ANTHROPIC_API_KEY
+        sync: false   # 和上面web服务填同一个key
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
