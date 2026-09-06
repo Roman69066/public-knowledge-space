@@ -18,22 +18,10 @@ services:
     dockerCommand: node server.js
     envVars:
       - key: DATABASE_URL
-        sync: false   # 在Render网页界面里手动填入Supabase的连接串
+        sync: false
       - key: ANTHROPIC_API_KEY
-        sync: false   # 在Render网页界面里手动填入你的真实key
+        sync: false
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5
-
-  - type: worker
-    name: pnks-worker
-    runtime: docker
-    plan: free
-    dockerfilePath: ./Dockerfile
-    dockerCommand: node worker.js render-worker-1
-    envVars:
-      - key: DATABASE_URL
-        sync: false   # 和上面web服务填同一个Supabase连接串
-      - key: ANTHROPIC_API_KEY
-        sync: false   # 和上面web服务填同一个key
-      - key: ANTHROPIC_MODEL
-        value: claude-sonnet-5
+      - key: RUN_WORKER_INLINE
+        value: "true"
