@@ -283,9 +283,21 @@ async function loop() {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
-ensureSchema()
-  .then(() => loop())
-  .catch((e) => {
-    console.error('启动失败，数据库自动建表出错，worker不会启动:', e.message);
-    process.exit(1);
-  });
+// ------------------------------------------------------------
+// 两种启动方式：
+//   1. 独立进程运行（node worker.js worker-A）—— 适合付费套餐的Background Worker服务
+//   2. 被server.js以模块方式引入，在同一个Web Service进程里跑循环 ——
+//      这是Render免费套餐的方案，因为免费套餐不支持Background Worker服务类型。
+// 两种方式跑的是同一份处理逻辑，唯一区别是"谁调用loop()"。
+// ------------------------------------------------------------
+if (require.main === module) {
+  // 作为独立进程启动（node worker.js worker-A）
+  ensureSchema()
+    .then(() => loop())
+    .catch((e) => {
+      console.error('启动失败，数据库自动建表出错，worker不会启动:', e.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { loop, ensureSchema };
