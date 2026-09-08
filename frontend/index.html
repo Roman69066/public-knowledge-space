@@ -214,7 +214,12 @@
       placeholder_question: '输入一个你真正好奇的问题……',
       btn_ask: '开始新的探索',
       my_explorations: '你在本设备创建过的探索',
-      home_hint: '这是一份存在你浏览器本地的清单，不是服务端提供的"公共广场"接口——P0原型还没做那个。',
+      home_hint: '"你在本设备创建过的探索"只是本地记住的快捷方式，不代表这是你的全部内容。',
+      public_square: '公共广场',
+      public_square_empty: '还没有人公开过探索，来当第一个吧。',
+      participants_count: (n) => `${n}个有效问题`,
+      by_named: (name) => `由 ${name} 发起`,
+      by_anonymous: '匿名发起',
       err_empty_question: '请输入问题内容',
       loading: '加载中…',
       badge_private: '私享', badge_published: '已公开', badge_collaborated: '公共协作中',
@@ -254,7 +259,12 @@
       placeholder_question: 'Enter a question you\'re genuinely curious about…',
       btn_ask: 'Start a new exploration',
       my_explorations: 'Explorations you created on this device',
-      home_hint: 'This list lives only in your browser\'s local storage, not a server-side "public square" endpoint — the P0 prototype doesn\'t have that yet.',
+      home_hint: '"Explorations you created on this device" is only a local shortcut — it doesn\'t represent everything you\'ve made.',
+      public_square: 'Public square',
+      public_square_empty: 'No one has published an exploration yet — be the first.',
+      participants_count: (n) => `${n} valid question${n === 1 ? '' : 's'}`,
+      by_named: (name) => `by ${name}`,
+      by_anonymous: 'Anonymous',
       err_empty_question: 'Please enter a question',
       loading: 'Loading…',
       badge_private: 'Private', badge_published: 'Published', badge_collaborated: 'Collaborated',
@@ -442,9 +452,9 @@
   }
 
   // ------------------------------------------------------------
-  // 视图：首页 —— 提出新问题
+  // 视图：首页 —— 提出新问题 + 公共广场
   // ------------------------------------------------------------
-  function renderHome() {
+  async function renderHome() {
     if (!state.token) { location.hash = '#/auth'; return; }
     const mine = myExplorations();
     app.innerHTML = `
@@ -459,8 +469,11 @@
         <ul>
           ${mine.map((m) => `<li><a href="#/exploration/${m.id}">${escapeHtml(m.title)}</a></li>`).join('')}
         </ul>
+        <p class="meta">${t('home_hint')}</p>
       ` : ''}
-      <footer class="hint">${t('home_hint')}</footer>
+
+      <h3 style="margin-top:40px;">${t('public_square')}</h3>
+      <div id="public-square"><p class="meta">${t('loading')}</p></div>
     `;
     document.getElementById('btn-ask').onclick = async () => {
       const question = document.getElementById('f-question').value.trim();
@@ -474,6 +487,31 @@
         notice.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
       }
     };
+
+    // 拉取公共广场（服务端权威数据源，不同账号之间靠这个互相发现内容）
+    const squareEl = document.getElementById('public-square');
+    try {
+      const list = await api('/explorations', { auth: false });
+      if (!list.length) {
+        squareEl.innerHTML = `<p class="meta">${t('public_square_empty')}</p>`;
+      } else {
+        squareEl.innerHTML = `
+          <div class="tree">
+            ${list.map((e) => `
+              <div class="node question">
+                <a class="q-text" href="#/exploration/${e.id}" style="text-decoration:none;color:inherit;">${escapeHtml(e.title || '')}</a>
+                <div class="meta">
+                  <span class="badge ${e.state.toLowerCase()}">${t('badge_' + e.state.toLowerCase())}</span>
+                  · ${e.identity_mode === 'NAMED' && e.initiator_display ? t('by_named', escapeHtml(e.initiator_display)) : t('by_anonymous')}
+                  · ${t('participants_count', e.question_count)}
+                </div>
+              </div>
+            `).join('')}
+          </div>`;
+      }
+    } catch (e) {
+      squareEl.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
+    }
   }
 
   // ------------------------------------------------------------
