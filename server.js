@@ -92,6 +92,28 @@ app.get('/me', auth, (req, res) => {
 });
 
 // ------------------------------------------------------------
+// 公共广场：列出所有PUBLISHED/COLLABORATED的探索，供发现。
+// 访客(未登录)也能浏览——这是PRD核心循环"被他人发现"的关键一环，
+// 之前P0版本完全没做，只有客户端本地记住"自己创建过的"，
+// 导致不同账号之间互相发现不了任何内容。
+// 匿名发起的探索不暴露initiator_display，只显示"匿名发起"。
+// ------------------------------------------------------------
+app.get('/explorations', authOptional, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT
+       e.id, e.title, e.state, e.identity_mode, e.created_at, e.published_at, e.collaborated_at,
+       CASE WHEN e.identity_mode = 'NAMED' THEN u.display_name ELSE NULL END AS initiator_display,
+       (SELECT count(*) FROM nodes n WHERE n.exploration_id = e.id AND n.node_type = 'QUESTION' AND n.status = 'ACTIVE') AS question_count
+     FROM explorations e
+     JOIN users u ON u.id = e.initiator_id
+     WHERE e.state IN ('PUBLISHED', 'COLLABORATED')
+     ORDER BY e.created_at DESC
+     LIMIT 50`
+  );
+  res.json(rows);
+});
+
+// ------------------------------------------------------------
 // 创建私人探索：提交Q0 → 直接生成A0（首答不经过Gate，PRD流程A）
 // initiator_id不再从请求体读取，强制来自已登录会话（req.user.id）
 // ------------------------------------------------------------

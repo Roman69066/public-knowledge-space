@@ -1,0 +1,700 @@
+<!--
+  设计方案（先于代码写下，作为自我核对基线）：
+
+  主题：这是一本"探问笔记本"，不是一个社交产品的仪表盘。
+  色彩：
+    --paper   #EFF1EC  偏冷灰绿的纸色（不用暖米色+赤陶配色，避开该套路）
+    --ink     #1E2620  深林绿黑，正文与标题
+    --accent  #3B6E52  森林绿，唯一的主要行动色
+    --soil    #9C6B30  赭石棕，次要提示/新方向标记
+    --line    #D6D8D0  发丝分隔线
+    --danger  #A23B3B  砖红，拒绝/错误状态
+  字体：标题与问题正文用衬线（Iowan Old Style/Palatino/Georgia），
+        界面控件与元信息用系统无衬线。不用全大写标签，不用圆角卡片网格。
+  布局：单栏，最大640px居中；探索树用左侧缩进+竖线连接表现层级，
+        不用卡片+阴影堆叠。
+  原则：安静的纸面背景，一个强调色，层级用缩进和线条表达而不是装饰。
+-->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>公共新知识空间 · 原型</title>
+<style>
+  :root {
+    --paper: #EFF1EC;
+    --ink: #1E2620;
+    --accent: #3B6E52;
+    --accent-dark: #2A4E3B;
+    --soil: #9C6B30;
+    --line: #D6D8D0;
+    --danger: #A23B3B;
+    --paper-raised: #F7F8F5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1, h2, h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    font-weight: 600;
+    margin: 0 0 0.4em;
+    line-height: 1.25;
+  }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0 0 1em; }
+  a { color: var(--accent-dark); }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 32px;
+  }
+  header.top .brand { font-family: "Iowan Old Style", Georgia, serif; font-size: 1.1rem; }
+  header.top .who { font-size: 0.85rem; color: #566058; }
+  header.top .who button {
+    background: none; border: none; color: var(--accent-dark);
+    text-decoration: underline; cursor: pointer; font: inherit; padding: 0; margin-left: 12px;
+  }
+
+  textarea, input[type=text], input[type=email], input[type=password] {
+    width: 100%;
+    font: inherit;
+    font-size: 1rem;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--paper-raised);
+    color: var(--ink);
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  label { display: block; font-size: 0.85rem; color: #4A5450; margin-bottom: 4px; }
+  .field { margin-bottom: 16px; }
+
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 3px;
+    font: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button.primary:hover { background: var(--accent-dark); }
+  button.primary:disabled { background: #A9B4AC; cursor: default; }
+  button.ghost {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 8px 16px;
+    border-radius: 3px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button.ghost:hover { border-color: var(--accent); color: var(--accent-dark); }
+  button.link {
+    background: none; border: none; color: var(--accent-dark);
+    text-decoration: underline; cursor: pointer; font: inherit; padding: 0;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    margin-left: 8px;
+  }
+  .badge.private { color: #6B6458; border-color: #6B6458; }
+  .badge.published { color: var(--accent-dark); border-color: var(--accent); }
+  .badge.collaborated { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  .notice {
+    padding: 10px 14px;
+    border-left: 3px solid var(--accent);
+    background: var(--paper-raised);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+  .notice.error { border-color: var(--danger); color: var(--danger); }
+  .notice.warn { border-color: var(--soil); color: #6b4a1f; }
+
+  .qa-root {
+    border-left: 3px solid var(--accent);
+    padding-left: 16px;
+    margin-bottom: 24px;
+  }
+  .qa-root .q { font-family: "Iowan Old Style", Georgia, serif; font-size: 1.2rem; margin-bottom: 8px; }
+  .qa-root .a { color: #33403A; }
+
+  .tree { margin-top: 8px; }
+  .node {
+    position: relative;
+    padding: 10px 0 10px 20px;
+    border-left: 1px solid var(--line);
+    margin-left: 8px;
+  }
+  .node.question .q-text {
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-style: italic;
+    font-size: 1.02rem;
+  }
+  .node.answer .a-text {
+    color: #33403A;
+    font-size: 0.95rem;
+    padding-left: 12px;
+    border-left: 2px solid var(--soil);
+    margin-top: 6px;
+  }
+  .meta { font-size: 0.78rem; color: #808A82; margin-top: 2px; }
+
+  .understanding {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+  .understanding h3 { margin-bottom: 12px; }
+  .understanding .row { margin-bottom: 10px; }
+  .understanding .row .label { font-size: 0.78rem; color: #6B7570; margin-bottom: 2px; }
+  .understanding ul { margin: 0; padding-left: 18px; }
+
+  .ask-box { margin-top: 32px; border-top: 1px solid var(--line); padding-top: 24px; }
+  .ask-box .prompt { font-size: 0.9rem; color: #566058; margin-bottom: 8px; }
+
+  .pending-status { font-size: 0.88rem; color: #566058; margin-top: 10px; }
+  .pending-status.completed { color: var(--accent-dark); }
+  .pending-status.rejected { color: var(--danger); }
+
+  footer.hint {
+    margin-top: 48px;
+    font-size: 0.78rem;
+    color: #8B948D;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+(function () {
+  // ------------------------------------------------------------
+  // i18n —— 前端界面文案的中英文字典。服务端返回的错误信息
+  // （比如"仅发起者可公开此探索"）目前仍是中文——这是后端没有
+  // 做国际化的已知边界，前端把它们原样显示，不做翻译，避免呈现
+  // 半真半假的"看起来是英文其实是机翻"的错误信息。
+  // ------------------------------------------------------------
+  const DICT = {
+    zh: {
+      brand: '公共新知识空间',
+      nav_home: '首页', nav_logout: '登出', nav_login: '登录 / 注册',
+      auth_title: '登录 / 注册',
+      auth_subtitle: '这是P0原型的简化认证，仅用于演示"身份必须来自服务端会话"这条安全原则。',
+      label_email: '邮箱', label_password: '密码（至少6位）', label_name: '显示名（仅注册时需要）',
+      btn_login: '登录', btn_signup: '注册新账号',
+      home_title: '你想弄清楚什么？',
+      placeholder_question: '输入一个你真正好奇的问题……',
+      btn_ask: '开始新的探索',
+      my_explorations: '你在本设备创建过的探索',
+      home_hint: '"你在本设备创建过的探索"只是本地记住的快捷方式，不代表这是你的全部内容。',
+      public_square: '公共广场',
+      public_square_empty: '还没有人公开过探索，来当第一个吧。',
+      participants_count: (n) => `${n}个有效问题`,
+      by_named: (name) => `由 ${name} 发起`,
+      by_anonymous: '匿名发起',
+      err_empty_question: '请输入问题内容',
+      loading: '加载中…',
+      badge_private: '私享', badge_published: '已公开', badge_collaborated: '公共协作中',
+      owner_private_notice: '这是你的私享探索。公开后其他注册用户可以继续追问。',
+      label_identity_mode: '公开方式',
+      opt_named: '署名公开', opt_anonymous: '匿名公开',
+      btn_publish: '公开这次探索',
+      btn_retract: '撤回为私享',
+      collaborated_notice: '这次探索已进入公共协作状态，不能被整体撤回或删除。',
+      exploration_tree: '探索树',
+      current_understanding: '当前认识',
+      map_consensus: '目前比较确定的', map_branches: '主要方向', map_new_direction: '最近出现的新方向',
+      ask_prompt: '你发现这里还有什么问题？',
+      placeholder_followup: '继续追问……',
+      btn_followup: '提交追问',
+      who_named: '署名用户', who_anonymous: '匿名',
+      status_processing: (s) => `状态：${s} — 正在处理…`,
+      status_query_failed: (m) => `查询状态失败：${m}`,
+      status_completed: '已被接受并生成回答。',
+      status_duplicate: '这个问题和已有内容高度重复。',
+      status_off_topic_default: '内容偏离主题或过短。',
+      status_abuse: '内容未通过审核，请换一种方式提问。',
+      status_safety: '内容涉及安全/隐私风险，已进入治理流程。',
+      status_failed: (m) => `处理失败：${m}`,
+      status_slow: '处理时间较长，请稍后刷新页面查看。',
+      exploration_id_label: 'exploration_id',
+      lang_switch: 'EN',
+    },
+    en: {
+      brand: 'Public New Knowledge Space',
+      nav_home: 'Home', nav_logout: 'Log out', nav_login: 'Log in / Sign up',
+      auth_title: 'Log in / Sign up',
+      auth_subtitle: 'This is the P0 prototype\'s simplified auth, built only to demonstrate that identity must come from a server-side session.',
+      label_email: 'Email', label_password: 'Password (min 6 chars)', label_name: 'Display name (sign up only)',
+      btn_login: 'Log in', btn_signup: 'Create account',
+      home_title: 'What do you want to figure out?',
+      placeholder_question: 'Enter a question you\'re genuinely curious about…',
+      btn_ask: 'Start a new exploration',
+      my_explorations: 'Explorations you created on this device',
+      home_hint: '"Explorations you created on this device" is only a local shortcut — it doesn\'t represent everything you\'ve made.',
+      public_square: 'Public square',
+      public_square_empty: 'No one has published an exploration yet — be the first.',
+      participants_count: (n) => `${n} valid question${n === 1 ? '' : 's'}`,
+      by_named: (name) => `by ${name}`,
+      by_anonymous: 'Anonymous',
+      err_empty_question: 'Please enter a question',
+      loading: 'Loading…',
+      badge_private: 'Private', badge_published: 'Published', badge_collaborated: 'Collaborated',
+      owner_private_notice: 'This is your private exploration. Once published, other registered users can continue asking questions.',
+      label_identity_mode: 'How to publish',
+      opt_named: 'Publish with name', opt_anonymous: 'Publish anonymously',
+      btn_publish: 'Publish this exploration',
+      btn_retract: 'Retract to private',
+      collaborated_notice: 'This exploration has entered the collaborated state and can no longer be retracted or deleted as a whole.',
+      exploration_tree: 'Exploration tree',
+      current_understanding: 'Current understanding',
+      map_consensus: 'Fairly settled', map_branches: 'Main directions', map_new_direction: 'Recent new directions',
+      ask_prompt: 'What else do you notice is missing here?',
+      placeholder_followup: 'Ask a follow-up…',
+      btn_followup: 'Submit question',
+      who_named: 'Named contributor', who_anonymous: 'Anonymous',
+      status_processing: (s) => `Status: ${s} — processing…`,
+      status_query_failed: (m) => `Failed to check status: ${m}`,
+      status_completed: 'Accepted, and an answer was generated.',
+      status_duplicate: 'This question closely duplicates existing content.',
+      status_off_topic_default: 'Off-topic or too short.',
+      status_abuse: 'Content did not pass review — please rephrase.',
+      status_safety: 'Content raised a safety/privacy concern and moved to governance review.',
+      status_failed: (m) => `Failed: ${m}`,
+      status_slow: 'Taking longer than usual — please refresh in a bit.',
+      exploration_id_label: 'exploration_id',
+      lang_switch: '中文',
+    },
+  };
+
+  function detectDefaultLang() {
+    const saved = localStorage.getItem('pnks_lang');
+    if (saved === 'zh' || saved === 'en') return saved;
+    return (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  }
+
+  const i18nState = { lang: detectDefaultLang() };
+  function t(key, ...args) {
+    const entry = (DICT[i18nState.lang] || DICT.en)[key];
+    if (typeof entry === 'function') return entry(...args);
+    return entry !== undefined ? entry : key;
+  }
+  function setLang(lang) {
+    i18nState.lang = lang;
+    localStorage.setItem('pnks_lang', lang);
+    document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+    render();
+  }
+
+  const state = {
+    token: localStorage.getItem('pnks_token') || null,
+    userId: localStorage.getItem('pnks_user_id') || null,
+    userName: localStorage.getItem('pnks_user_name') || null,
+  };
+
+  function setSession(user, token) {
+    state.token = token;
+    state.userId = user.id;
+    state.userName = user.display_name;
+    localStorage.setItem('pnks_token', token);
+    localStorage.setItem('pnks_user_id', user.id);
+    localStorage.setItem('pnks_user_name', user.display_name);
+  }
+  function clearSession() {
+    state.token = null; state.userId = null; state.userName = null;
+    localStorage.removeItem('pnks_token');
+    localStorage.removeItem('pnks_user_id');
+    localStorage.removeItem('pnks_user_name');
+  }
+  function myExplorations() {
+    try { return JSON.parse(localStorage.getItem('pnks_my_explorations') || '[]'); }
+    catch (e) { return []; }
+  }
+  function rememberExploration(id, title) {
+    const list = myExplorations().filter((e) => e.id !== id);
+    list.unshift({ id, title });
+    localStorage.setItem('pnks_my_explorations', JSON.stringify(list.slice(0, 20)));
+  }
+
+  async function api(path, { method = 'GET', body, auth = true } = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (auth && state.token) headers['Authorization'] = 'Bearer ' + state.token;
+    const res = await fetch(new URL(path, window.location.origin).toString(), { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* 无响应体 */ }
+    if (!res.ok) {
+      const err = new Error((data && data.error) || ('HTTP ' + res.status));
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  const app = document.getElementById('app');
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  function renderHeader(activeTitle) {
+    return `
+      <header class="top">
+        <div class="brand">${t('brand')} <span style="color:#8B948D;font-size:0.8rem;">/ ${escapeHtml(activeTitle || '')}</span></div>
+        <div class="who">
+          ${state.token
+            ? `${escapeHtml(state.userName || '')} · <button data-action="logout">${t('nav_logout')}</button> <button data-action="go-home">${t('nav_home')}</button>`
+            : `<button data-action="go-auth">${t('nav_login')}</button>`}
+          <button data-action="toggle-lang" style="margin-left:12px;">${t('lang_switch')}</button>
+        </div>
+      </header>`;
+  }
+
+  // ------------------------------------------------------------
+  // 路由
+  // ------------------------------------------------------------
+  function currentRoute() {
+    const hash = location.hash.slice(1) || '/';
+    if (hash === '/' || hash === '') return { name: 'home' };
+    if (hash === '/auth') return { name: 'auth' };
+    const m = hash.match(/^\/exploration\/([a-f0-9-]+)$/);
+    if (m) return { name: 'exploration', id: m[1] };
+    return { name: 'home' };
+  }
+
+  window.addEventListener('hashchange', render);
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.dataset.action;
+    if (action === 'logout') {
+      api('/auth/logout', { method: 'POST' }).catch(() => {}).finally(() => {
+        clearSession();
+        location.hash = '#/auth';
+      });
+    } else if (action === 'go-home') location.hash = '#/';
+    else if (action === 'go-auth') location.hash = '#/auth';
+    else if (action === 'toggle-lang') setLang(i18nState.lang === 'zh' ? 'en' : 'zh');
+  });
+
+  function render() {
+    const route = currentRoute();
+    if (route.name === 'auth') return renderAuth();
+    if (route.name === 'exploration') return renderExploration(route.id);
+    return renderHome();
+  }
+
+  // ------------------------------------------------------------
+  // 视图：登录/注册
+  // ------------------------------------------------------------
+  function renderAuth() {
+    app.innerHTML = `
+      ${renderHeader(t('auth_title'))}
+      <h1>${t('auth_title')}</h1>
+      <p style="color:#566058;font-size:0.9rem;">${t('auth_subtitle')}</p>
+      <div id="auth-notice"></div>
+      <div class="field"><label>${t('label_email')}</label><input type="email" id="f-email" placeholder="you@example.com" /></div>
+      <div class="field"><label>${t('label_password')}</label><input type="password" id="f-password" /></div>
+      <div class="field"><label>${t('label_name')}</label><input type="text" id="f-name" /></div>
+      <button class="primary" id="btn-login">${t('btn_login')}</button>
+      <button class="ghost" id="btn-signup" style="margin-left:8px;">${t('btn_signup')}</button>
+    `;
+    const notice = document.getElementById('auth-notice');
+    function showError(msg) {
+      notice.innerHTML = `<div class="notice error">${escapeHtml(msg)}</div>`;
+    }
+    async function doAuth(kind) {
+      const email = document.getElementById('f-email').value.trim();
+      const password = document.getElementById('f-password').value;
+      const display_name = document.getElementById('f-name').value.trim();
+      try {
+        const path = kind === 'login' ? '/auth/login' : '/auth/signup';
+        const body = kind === 'login' ? { email, password } : { email, password, display_name };
+        const data = await api(path, { method: 'POST', body, auth: false });
+        setSession(data.user, data.token);
+        location.hash = '#/';
+      } catch (e) {
+        showError(e.message);
+      }
+    }
+    document.getElementById('btn-login').onclick = () => doAuth('login');
+    document.getElementById('btn-signup').onclick = () => doAuth('signup');
+  }
+
+  // ------------------------------------------------------------
+  // 视图：首页 —— 提出新问题 + 公共广场
+  // ------------------------------------------------------------
+  async function renderHome() {
+    if (!state.token) { location.hash = '#/auth'; return; }
+    const mine = myExplorations();
+    app.innerHTML = `
+      ${renderHeader(t('nav_home'))}
+      <h1>${t('home_title')}</h1>
+      <div id="home-notice"></div>
+      <div class="field"><textarea id="f-question" placeholder="${t('placeholder_question')}"></textarea></div>
+      <button class="primary" id="btn-ask">${t('btn_ask')}</button>
+
+      ${mine.length ? `
+        <h3 style="margin-top:40px;">${t('my_explorations')}</h3>
+        <ul>
+          ${mine.map((m) => `<li><a href="#/exploration/${m.id}">${escapeHtml(m.title)}</a></li>`).join('')}
+        </ul>
+        <p class="meta">${t('home_hint')}</p>
+      ` : ''}
+
+      <h3 style="margin-top:40px;">${t('public_square')}</h3>
+      <div id="public-square"><p class="meta">${t('loading')}</p></div>
+    `;
+    document.getElementById('btn-ask').onclick = async () => {
+      const question = document.getElementById('f-question').value.trim();
+      const notice = document.getElementById('home-notice');
+      if (!question) { notice.innerHTML = `<div class="notice error">${t('err_empty_question')}</div>`; return; }
+      try {
+        const data = await api('/explorations', { method: 'POST', body: { question } });
+        rememberExploration(data.exploration_id, question.slice(0, 30));
+        location.hash = '#/exploration/' + data.exploration_id;
+      } catch (e) {
+        notice.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
+      }
+    };
+
+    // 拉取公共广场（服务端权威数据源，不同账号之间靠这个互相发现内容）
+    const squareEl = document.getElementById('public-square');
+    try {
+      const list = await api('/explorations', { auth: false });
+      if (!list.length) {
+        squareEl.innerHTML = `<p class="meta">${t('public_square_empty')}</p>`;
+      } else {
+        squareEl.innerHTML = `
+          <div class="tree">
+            ${list.map((e) => `
+              <div class="node question">
+                <a class="q-text" href="#/exploration/${e.id}" style="text-decoration:none;color:inherit;">${escapeHtml(e.title || '')}</a>
+                <div class="meta">
+                  <span class="badge ${e.state.toLowerCase()}">${t('badge_' + e.state.toLowerCase())}</span>
+                  · ${e.identity_mode === 'NAMED' && e.initiator_display ? t('by_named', escapeHtml(e.initiator_display)) : t('by_anonymous')}
+                  · ${t('participants_count', e.question_count)}
+                </div>
+              </div>
+            `).join('')}
+          </div>`;
+      }
+    } catch (e) {
+      squareEl.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 视图：探索详情
+  // ------------------------------------------------------------
+  function buildTree(nodes) {
+    const byId = {};
+    nodes.forEach((n) => { byId[n.id] = { ...n, children: [] }; });
+    const roots = [];
+    nodes.forEach((n) => {
+      if (n.parent_node_id && byId[n.parent_node_id]) {
+        byId[n.parent_node_id].children.push(byId[n.id]);
+      } else if (n.parent_node_id === null && n.node_type === 'ANSWER') {
+        // A0跟随根Question，不单独作为root
+      }
+    });
+    // roots: 所有没有parent的QUESTION节点
+    nodes.forEach((n) => {
+      if (!n.parent_node_id && n.node_type === 'QUESTION') roots.push(byId[n.id]);
+    });
+    return roots;
+  }
+
+  function renderNode(node, depth) {
+    if (node.node_type === 'QUESTION') {
+      const who = node.public_identity_mode === 'ANONYMOUS' ? t('who_anonymous') : (node.public_identity_mode === 'SYSTEM' ? '' : t('who_named'));
+      return `
+        <div class="node question">
+          <div class="q-text">${escapeHtml(node.content)}</div>
+          <div class="meta">${who} · ${new Date(node.created_at).toLocaleString()}</div>
+          ${node.children.map((c) => renderNode(c, depth + 1)).join('')}
+        </div>`;
+    }
+    return `
+      <div class="node answer">
+        <div class="a-text">${escapeHtml(node.content)}</div>
+        ${node.children.map((c) => renderNode(c, depth + 1)).join('')}
+      </div>`;
+  }
+
+  async function renderExploration(id) {
+    app.innerHTML = renderHeader(t('exploration_tree')) + `<p>${t('loading')}</p>`;
+    let data;
+    try {
+      data = await api('/explorations/' + id, { auth: !!state.token });
+    } catch (e) {
+      app.innerHTML = renderHeader(t('exploration_tree')) + `<div class="notice error">${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    const exp = data.exploration;
+    const isInitiator = state.userId === exp.initiator_id;
+    const badgeClass = exp.state.toLowerCase();
+    const badgeText = { PRIVATE: t('badge_private'), PUBLISHED: t('badge_published'), COLLABORATED: t('badge_collaborated') }[exp.state];
+
+    const roots = buildTree(data.nodes);
+    const rootQ = data.nodes.find((n) => n.id === exp.root_question_id);
+    const rootA = data.nodes.find((n) => n.parent_node_id === exp.root_question_id && n.node_type === 'ANSWER');
+    const restRoots = roots.filter((r) => r.id !== exp.root_question_id);
+
+    const mapHtml = data.understanding_map ? `
+      <div class="understanding">
+        <h3>${t('current_understanding')} <span style="font-size:0.78rem;color:#8B948D;">v${data.understanding_map.version}</span></h3>
+        ${renderMapSection(t('map_consensus'), data.understanding_map.summary_json.current_consensus)}
+        ${renderMapSection(t('map_branches'), data.understanding_map.summary_json.major_branches)}
+        ${renderMapSection(t('map_new_direction'), data.understanding_map.summary_json.recent_new_directions)}
+      </div>` : '';
+
+    app.innerHTML = `
+      ${renderHeader(t('exploration_tree'))}
+      <span class="badge ${badgeClass}">${badgeText}</span>
+      ${rootQ ? `
+        <div class="qa-root" style="margin-top:16px;">
+          <div class="q">${escapeHtml(rootQ.content)}</div>
+          <div class="a">${rootA ? escapeHtml(rootA.content) : ''}</div>
+        </div>` : ''}
+
+      <div id="owner-controls"></div>
+
+      ${mapHtml}
+
+      ${restRoots.length ? `<h3>${t('exploration_tree')}</h3><div class="tree">${restRoots.map((r) => renderNode(r, 0)).join('')}</div>` : ''}
+
+      <div class="ask-box">
+        <div class="prompt">${t('ask_prompt')}</div>
+        <div class="field"><textarea id="f-followup" placeholder="${t('placeholder_followup')}"></textarea></div>
+        <button class="primary" id="btn-followup">${t('btn_followup')}</button>
+        <div id="pending-area"></div>
+      </div>
+
+      <footer class="hint">${t('exploration_id_label')}: ${id}</footer>
+    `;
+
+    // 发起者控制区：公开 / 撤回
+    const ownerEl = document.getElementById('owner-controls');
+    if (isInitiator && exp.state === 'PRIVATE') {
+      ownerEl.innerHTML = `
+        <div class="notice">${t('owner_private_notice')}</div>
+        <label>${t('label_identity_mode')}</label>
+        <select id="identity-mode" style="margin-bottom:10px;">
+          <option value="NAMED">${t('opt_named')}</option>
+          <option value="ANONYMOUS">${t('opt_anonymous')}</option>
+        </select><br/>
+        <button class="primary" id="btn-publish">${t('btn_publish')}</button>
+      `;
+      document.getElementById('btn-publish').onclick = async () => {
+        const identity_mode = document.getElementById('identity-mode').value;
+        try {
+          await api('/explorations/' + id + '/publish', { method: 'POST', body: { identity_mode } });
+          renderExploration(id);
+        } catch (e) {
+          ownerEl.innerHTML += `<div class="notice error">${escapeHtml(e.message)}</div>`;
+        }
+      };
+    } else if (isInitiator && exp.state === 'PUBLISHED') {
+      ownerEl.innerHTML = `<button class="ghost" id="btn-retract">${t('btn_retract')}</button>`;
+      document.getElementById('btn-retract').onclick = async () => {
+        try {
+          await api('/explorations/' + id + '/retract', { method: 'POST' });
+          renderExploration(id);
+        } catch (e) {
+          ownerEl.innerHTML += `<div class="notice error">${escapeHtml(e.message)}</div>`;
+        }
+      };
+    } else if (exp.state === 'COLLABORATED') {
+      ownerEl.innerHTML = `<div class="notice">${t('collaborated_notice')}</div>`;
+    }
+
+    // 追问提交与轮询
+    document.getElementById('btn-followup').onclick = async () => {
+      if (!state.token) { location.hash = '#/auth'; return; }
+      const content = document.getElementById('f-followup').value.trim();
+      const pendingArea = document.getElementById('pending-area');
+      if (!content) return;
+      try {
+        const sub = await api('/explorations/' + id + '/questions', { method: 'POST', body: { content } });
+        pendingArea.innerHTML = `<div class="pending-status" id="pending-status">${t('status_processing', sub.status)}</div>`;
+        pollPending(sub.pending_id, id);
+      } catch (e) {
+        pendingArea.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
+      }
+    };
+  }
+
+  function renderMapSection(label, items) {
+    if (!items || !items.length) return '';
+    return `<div class="row"><div class="label">${escapeHtml(label)}</div><ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul></div>`;
+  }
+
+  const TERMINAL = ['COMPLETED', 'DUPLICATE', 'OFF_TOPIC', 'ABUSE', 'SAFETY_BLOCK', 'FAILED'];
+  async function pollPending(pendingId, explorationId, attempt = 0) {
+    const el = document.getElementById('pending-status');
+    if (!el) return; // 用户已经离开这个视图
+    let pq;
+    try {
+      pq = await api('/pending-questions/' + pendingId);
+    } catch (e) {
+      el.textContent = t('status_query_failed', e.message);
+      return;
+    }
+    if (TERMINAL.includes(pq.status)) {
+      const messages = {
+        COMPLETED: t('status_completed'),
+        DUPLICATE: t('status_duplicate'),
+        OFF_TOPIC: pq.redirect_hint || t('status_off_topic_default'),
+        ABUSE: t('status_abuse'),
+        SAFETY_BLOCK: t('status_safety'),
+        FAILED: t('status_failed', pq.last_error || (i18nState.lang === 'zh' ? '未知错误' : 'unknown error')),
+      };
+      el.className = 'pending-status ' + (pq.status === 'COMPLETED' ? 'completed' : 'rejected');
+      el.textContent = messages[pq.status];
+      if (pq.status === 'COMPLETED') {
+        setTimeout(() => renderExploration(explorationId), 800);
+      }
+      return;
+    }
+    el.textContent = t('status_processing', pq.status);
+    if (attempt > 30) { el.textContent = t('status_slow'); return; }
+    setTimeout(() => pollPending(pendingId, explorationId, attempt + 1), 800);
+  }
+
+  document.documentElement.lang = i18nState.lang === 'zh' ? 'zh' : 'en';
+  render();
+})();
+</script>
+</body>
+</html>
