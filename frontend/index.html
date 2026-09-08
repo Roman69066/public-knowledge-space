@@ -179,6 +179,61 @@
   .ask-box .prompt { font-size: 0.9rem; color: #566058; margin-bottom: 8px; }
 
   .pending-status { font-size: 0.88rem; color: #566058; margin-top: 10px; }
+  .pending-status.processing::after {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 1s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+
+  .tabs { display: flex; gap: 4px; margin: 12px 0 16px; border-bottom: 1px solid var(--line); }
+  .tab-btn {
+    background: none; border: none; cursor: pointer; font: inherit;
+    padding: 8px 12px; color: #6B7570; border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active { color: var(--accent-dark); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .follow-btn {
+    background: none; border: 1px solid var(--line); color: var(--accent-dark);
+    padding: 2px 10px; border-radius: 2px; font: inherit; font-size: 0.75rem;
+    cursor: pointer; margin-left: 8px;
+  }
+  .follow-btn:hover { border-color: var(--accent); }
+
+  .reply-target-btn {
+    background: none; border: none; color: #8B948D;
+    font: inherit; font-size: 0.75rem; cursor: pointer;
+    text-decoration: underline; padding: 0; margin-left: 8px;
+  }
+  .reply-target-btn:hover { color: var(--accent-dark); }
+  .ask-box .target-label {
+    font-size: 0.82rem; color: var(--accent-dark); margin-bottom: 4px;
+  }
+  .ask-box .target-label button {
+    background: none; border: none; color: #8B948D; text-decoration: underline;
+    font: inherit; font-size: 0.78rem; cursor: pointer; margin-left: 8px; padding: 0;
+  }
+
+  .bell-btn {
+    background: none; border: none; cursor: pointer; font: inherit;
+    color: var(--accent-dark); position: relative; padding: 0 4px;
+  }
+  .bell-dot {
+    display: inline-block; min-width: 15px; height: 15px; line-height: 15px;
+    background: var(--danger); color: #fff; border-radius: 50%;
+    font-size: 0.65rem; text-align: center; margin-left: 2px; padding: 0 2px;
+  }
+  .notif-item { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+  .notif-item.unread { font-weight: 600; }
+  .notif-item .meta { font-weight: normal; }
   .pending-status.completed { color: var(--accent-dark); }
   .pending-status.rejected { color: var(--danger); }
 
@@ -220,6 +275,13 @@
       participants_count: (n) => `${n}个有效问题`,
       by_named: (name) => `由 ${name} 发起`,
       by_anonymous: '匿名发起',
+      sort_newest: '新探索', sort_active: '正在快速生长', sort_following: '你关注的',
+      sort_following_login_hint: '登录后才能看到你关注的探索。',
+      btn_follow: '关注', btn_unfollow: '取消关注',
+      notifications_title: '通知', notifications_empty: '暂无通知',
+      mark_all_read: '全部标为已读',
+      notif_named_followup: '有人对你的署名节点继续追问',
+      notif_followed_new: '你关注的探索出现了新追问',
       err_empty_question: '请输入问题内容',
       loading: '加载中…',
       badge_private: '私享', badge_published: '已公开', badge_collaborated: '公共协作中',
@@ -233,10 +295,21 @@
       current_understanding: '当前认识',
       map_consensus: '目前比较确定的', map_branches: '主要方向', map_new_direction: '最近出现的新方向',
       ask_prompt: '你发现这里还有什么问题？',
+      reply_here: '针对此追问',
+      replying_to: (snippet) => `正在针对："${snippet}…" 追问`,
+      reset_to_root: '改为针对根问题',
       placeholder_followup: '继续追问……',
       btn_followup: '提交追问',
       who_named: '署名用户', who_anonymous: '匿名',
-      status_processing: (s) => `状态：${s} — 正在处理…`,
+      status_processing: (s) => {
+        const phase = {
+          SUBMITTED: '已收到，排队处理中',
+          CLASSIFYING: '正在判断这是不是有效新问题',
+          ANSWERING: 'AI正在生成回答',
+          COMMITTING: '正在写入知识树',
+        }[s] || `状态：${s}`;
+        return phase + '…';
+      },
       status_query_failed: (m) => `查询状态失败：${m}`,
       status_completed: '已被接受并生成回答。',
       status_duplicate: '这个问题和已有内容高度重复。',
@@ -265,6 +338,13 @@
       participants_count: (n) => `${n} valid question${n === 1 ? '' : 's'}`,
       by_named: (name) => `by ${name}`,
       by_anonymous: 'Anonymous',
+      sort_newest: 'Newest', sort_active: 'Fast growing', sort_following: 'Following',
+      sort_following_login_hint: 'Log in to see explorations you follow.',
+      btn_follow: 'Follow', btn_unfollow: 'Unfollow',
+      notifications_title: 'Notifications', notifications_empty: 'No notifications yet',
+      mark_all_read: 'Mark all as read',
+      notif_named_followup: 'Someone followed up on your named node',
+      notif_followed_new: 'A followed exploration has a new question',
       err_empty_question: 'Please enter a question',
       loading: 'Loading…',
       badge_private: 'Private', badge_published: 'Published', badge_collaborated: 'Collaborated',
@@ -278,10 +358,21 @@
       current_understanding: 'Current understanding',
       map_consensus: 'Fairly settled', map_branches: 'Main directions', map_new_direction: 'Recent new directions',
       ask_prompt: 'What else do you notice is missing here?',
+      reply_here: 'Reply here',
+      replying_to: (snippet) => `Replying to: "${snippet}…"`,
+      reset_to_root: 'Reset to root question',
       placeholder_followup: 'Ask a follow-up…',
       btn_followup: 'Submit question',
       who_named: 'Named contributor', who_anonymous: 'Anonymous',
-      status_processing: (s) => `Status: ${s} — processing…`,
+      status_processing: (s) => {
+        const phase = {
+          SUBMITTED: 'Received, queued',
+          CLASSIFYING: 'Checking whether this is a valid new question',
+          ANSWERING: 'AI is generating an answer',
+          COMMITTING: 'Writing into the knowledge tree',
+        }[s] || `Status: ${s}`;
+        return phase + '…';
+      },
       status_query_failed: (m) => `Failed to check status: ${m}`,
       status_completed: 'Accepted, and an answer was generated.',
       status_duplicate: 'This question closely duplicates existing content.',
@@ -368,16 +459,30 @@
   }
 
   function renderHeader(activeTitle) {
+    const bellIconSvg = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
     return `
       <header class="top">
         <div class="brand">${t('brand')} <span style="color:#8B948D;font-size:0.8rem;">/ ${escapeHtml(activeTitle || '')}</span></div>
         <div class="who">
           ${state.token
-            ? `${escapeHtml(state.userName || '')} · <button data-action="logout">${t('nav_logout')}</button> <button data-action="go-home">${t('nav_home')}</button>`
+            ? `${escapeHtml(state.userName || '')} ·
+               <button class="bell-btn" data-action="go-notifications" aria-label="notifications">${bellIconSvg}<span id="notif-badge"></span></button>
+               <button data-action="logout">${t('nav_logout')}</button> <button data-action="go-home">${t('nav_home')}</button>`
             : `<button data-action="go-auth">${t('nav_login')}</button>`}
           <button data-action="toggle-lang" style="margin-left:12px;">${t('lang_switch')}</button>
         </div>
       </header>`;
+  }
+
+  async function refreshNotifBadge() {
+    if (!state.token) return;
+    const badge = document.getElementById('notif-badge');
+    if (!badge) return;
+    try {
+      const list = await api('/notifications');
+      const unread = list.filter((n) => !n.read_at).length;
+      badge.innerHTML = unread ? `<span class="bell-dot">${unread > 9 ? '9+' : unread}</span>` : '';
+    } catch (e) { /* 静默失败，不影响主界面 */ }
   }
 
   // ------------------------------------------------------------
@@ -387,6 +492,7 @@
     const hash = location.hash.slice(1) || '/';
     if (hash === '/' || hash === '') return { name: 'home' };
     if (hash === '/auth') return { name: 'auth' };
+    if (hash === '/notifications') return { name: 'notifications' };
     const m = hash.match(/^\/exploration\/([a-f0-9-]+)$/);
     if (m) return { name: 'exploration', id: m[1] };
     return { name: 'home' };
@@ -404,12 +510,14 @@
       });
     } else if (action === 'go-home') location.hash = '#/';
     else if (action === 'go-auth') location.hash = '#/auth';
+    else if (action === 'go-notifications') location.hash = '#/notifications';
     else if (action === 'toggle-lang') setLang(i18nState.lang === 'zh' ? 'en' : 'zh');
   });
 
   function render() {
     const route = currentRoute();
     if (route.name === 'auth') return renderAuth();
+    if (route.name === 'notifications') return renderNotifications();
     if (route.name === 'exploration') return renderExploration(route.id);
     return renderHome();
   }
@@ -473,6 +581,11 @@
       ` : ''}
 
       <h3 style="margin-top:40px;">${t('public_square')}</h3>
+      <div class="tabs" id="square-tabs">
+        <button class="tab-btn active" data-sort="newest">${t('sort_newest')}</button>
+        <button class="tab-btn" data-sort="active">${t('sort_active')}</button>
+        <button class="tab-btn" data-sort="following">${t('sort_following')}</button>
+      </div>
       <div id="public-square"><p class="meta">${t('loading')}</p></div>
     `;
     document.getElementById('btn-ask').onclick = async () => {
@@ -488,27 +601,56 @@
       }
     };
 
-    // 拉取公共广场（服务端权威数据源，不同账号之间靠这个互相发现内容）
+    document.querySelectorAll('#square-tabs .tab-btn').forEach((btn) => {
+      btn.onclick = () => {
+        document.querySelectorAll('#square-tabs .tab-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadSquare(btn.dataset.sort);
+      };
+    });
+    loadSquare('newest');
+    refreshNotifBadge();
+  }
+
+  async function loadSquare(sort) {
     const squareEl = document.getElementById('public-square');
+    if (!squareEl) return;
+    squareEl.innerHTML = `<p class="meta">${t('loading')}</p>`;
     try {
-      const list = await api('/explorations', { auth: false });
+      const list = await api('/explorations?sort=' + sort, { auth: !!state.token });
       if (!list.length) {
-        squareEl.innerHTML = `<p class="meta">${t('public_square_empty')}</p>`;
-      } else {
-        squareEl.innerHTML = `
-          <div class="tree">
-            ${list.map((e) => `
-              <div class="node question">
-                <a class="q-text" href="#/exploration/${e.id}" style="text-decoration:none;color:inherit;">${escapeHtml(e.title || '')}</a>
-                <div class="meta">
-                  <span class="badge ${e.state.toLowerCase()}">${t('badge_' + e.state.toLowerCase())}</span>
-                  · ${e.identity_mode === 'NAMED' && e.initiator_display ? t('by_named', escapeHtml(e.initiator_display)) : t('by_anonymous')}
-                  · ${t('participants_count', e.question_count)}
-                </div>
-              </div>
-            `).join('')}
-          </div>`;
+        squareEl.innerHTML = `<p class="meta">${sort === 'following' && !state.token ? t('sort_following_login_hint') : t('public_square_empty')}</p>`;
+        return;
       }
+      squareEl.innerHTML = `
+        <div class="tree">
+          ${list.map((e) => `
+            <div class="node question">
+              <a class="q-text" href="#/exploration/${e.id}" style="text-decoration:none;color:inherit;">${escapeHtml(e.title || '')}</a>
+              <div class="meta">
+                <span class="badge ${e.state.toLowerCase()}">${t('badge_' + e.state.toLowerCase())}</span>
+                · ${e.identity_mode === 'NAMED' && e.initiator_display ? t('by_named', escapeHtml(e.initiator_display)) : t('by_anonymous')}
+                · ${t('participants_count', e.question_count)}
+                ${state.token ? `<button class="follow-btn" data-id="${e.id}" data-followed="${e.followed_by_me}">${e.followed_by_me ? t('btn_unfollow') : t('btn_follow')}</button>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+      squareEl.querySelectorAll('.follow-btn').forEach((btn) => {
+        btn.onclick = async (ev) => {
+          ev.preventDefault();
+          const id = btn.dataset.id;
+          const followed = btn.dataset.followed === 'true';
+          try {
+            if (followed) {
+              await api('/follows?target_type=EXPLORATION&target_id=' + id, { method: 'DELETE' });
+            } else {
+              await api('/follows', { method: 'POST', body: { target_type: 'EXPLORATION', target_id: id } });
+            }
+            loadSquare(sort);
+          } catch (e) { /* 静默失败，广场刷新即可重试 */ }
+        };
+      });
     } catch (e) {
       squareEl.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
     }
@@ -541,7 +683,9 @@
       return `
         <div class="node question">
           <div class="q-text">${escapeHtml(node.content)}</div>
-          <div class="meta">${who} · ${new Date(node.created_at).toLocaleString()}</div>
+          <div class="meta">${who} · ${new Date(node.created_at).toLocaleString()}
+            <button class="reply-target-btn" data-reply-id="${node.id}" data-reply-snippet="${escapeHtml(node.content.slice(0, 20))}">${t('reply_here')}</button>
+          </div>
           ${node.children.map((c) => renderNode(c, depth + 1)).join('')}
         </div>`;
     }
@@ -569,7 +713,15 @@
     const roots = buildTree(data.nodes);
     const rootQ = data.nodes.find((n) => n.id === exp.root_question_id);
     const rootA = data.nodes.find((n) => n.parent_node_id === exp.root_question_id && n.node_type === 'ANSWER');
-    const restRoots = roots.filter((r) => r.id !== exp.root_question_id);
+    // rootEntry是buildTree里带着完整children的根问题对象（根问题本身在qa-root单独展示，
+    // 不重复渲染，但它的children——也就是挂在根问题下的追问——需要在探索树里展示出来）。
+    const rootEntry = roots.find((r) => r.id === exp.root_question_id);
+    // rootA(A0)已经在qa-root单独展示了，这里要排除掉，否则会在探索树里重复出现一次。
+    const rootChildren = rootEntry ? rootEntry.children.filter((c) => !(rootA && c.id === rootA.id)) : [];
+    // otherRoots兼容旧数据：早期版本追问的parent_node_id是空的，会被当成独立"根"，
+    // 修复后新追问不会再出现这种情况，但历史数据仍需要能显示出来。
+    const otherRoots = roots.filter((r) => r.id !== exp.root_question_id);
+    const treeNodes = [...rootChildren, ...otherRoots];
 
     const mapHtml = data.understanding_map ? `
       <div class="understanding">
@@ -582,19 +734,25 @@
     app.innerHTML = `
       ${renderHeader(t('exploration_tree'))}
       <span class="badge ${badgeClass}">${badgeText}</span>
+      ${state.token && !isInitiator && exp.state !== 'PRIVATE' ? `
+        <button class="follow-btn" id="btn-follow-exploration" data-followed="${data.followed_by_me}">
+          ${data.followed_by_me ? t('btn_unfollow') : t('btn_follow')}
+        </button>` : ''}
       ${rootQ ? `
         <div class="qa-root" style="margin-top:16px;">
           <div class="q">${escapeHtml(rootQ.content)}</div>
           <div class="a">${rootA ? escapeHtml(rootA.content) : ''}</div>
+          <button class="reply-target-btn" data-reply-id="${rootQ.id}" data-reply-snippet="${escapeHtml(rootQ.content.slice(0, 20))}">${t('reply_here')}</button>
         </div>` : ''}
 
       <div id="owner-controls"></div>
 
       ${mapHtml}
 
-      ${restRoots.length ? `<h3>${t('exploration_tree')}</h3><div class="tree">${restRoots.map((r) => renderNode(r, 0)).join('')}</div>` : ''}
+      ${treeNodes.length ? `<h3>${t('exploration_tree')}</h3><div class="tree">${treeNodes.map((r) => renderNode(r, 0)).join('')}</div>` : ''}
 
       <div class="ask-box">
+        <div class="target-label" id="reply-target-label"></div>
         <div class="prompt">${t('ask_prompt')}</div>
         <div class="field"><textarea id="f-followup" placeholder="${t('placeholder_followup')}"></textarea></div>
         <button class="primary" id="btn-followup">${t('btn_followup')}</button>
@@ -603,6 +761,26 @@
 
       <footer class="hint">${t('exploration_id_label')}: ${id}</footer>
     `;
+
+    // 追问目标节点：默认针对根问题Q0，点任意节点的"针对此追问"可以改
+    let replyTarget = rootQ ? rootQ.id : null;
+    function updateReplyLabel() {
+      const labelEl = document.getElementById('reply-target-label');
+      if (!labelEl) return;
+      if (!rootQ || replyTarget === rootQ.id) {
+        labelEl.innerHTML = '';
+        return;
+      }
+      const btn = document.querySelector(`[data-reply-id="${replyTarget}"]`);
+      const snippet = btn ? btn.dataset.replySnippet : '';
+      labelEl.innerHTML = `${t('replying_to', escapeHtml(snippet))} <button id="btn-reset-target">${t('reset_to_root')}</button>`;
+      const resetBtn = document.getElementById('btn-reset-target');
+      if (resetBtn) resetBtn.onclick = () => { replyTarget = rootQ.id; updateReplyLabel(); };
+    }
+    document.querySelectorAll('[data-reply-id]').forEach((btn) => {
+      btn.onclick = () => { replyTarget = btn.dataset.replyId; updateReplyLabel(); document.getElementById('f-followup').focus(); };
+    });
+    updateReplyLabel();
 
     // 发起者控制区：公开 / 撤回
     const ownerEl = document.getElementById('owner-controls');
@@ -646,13 +824,76 @@
       const pendingArea = document.getElementById('pending-area');
       if (!content) return;
       try {
-        const sub = await api('/explorations/' + id + '/questions', { method: 'POST', body: { content } });
-        pendingArea.innerHTML = `<div class="pending-status" id="pending-status">${t('status_processing', sub.status)}</div>`;
+        const sub = await api('/explorations/' + id + '/questions', { method: 'POST', body: { content, parent_node_id: replyTarget } });
+        pendingArea.innerHTML = `<div class="pending-status processing" id="pending-status">${t('status_processing', sub.status)}</div>`;
         pollPending(sub.pending_id, id);
       } catch (e) {
         pendingArea.innerHTML = `<div class="notice error">${escapeHtml(e.message)}</div>`;
       }
     };
+
+    const followBtn = document.getElementById('btn-follow-exploration');
+    if (followBtn) {
+      followBtn.onclick = async () => {
+        const followed = followBtn.dataset.followed === 'true';
+        try {
+          if (followed) {
+            await api('/follows?target_type=EXPLORATION&target_id=' + id, { method: 'DELETE' });
+          } else {
+            await api('/follows', { method: 'POST', body: { target_type: 'EXPLORATION', target_id: id } });
+          }
+          renderExploration(id);
+        } catch (e) { /* 静默失败 */ }
+      };
+    }
+    refreshNotifBadge();
+  }
+
+  // ------------------------------------------------------------
+  // 视图：通知列表
+  // ------------------------------------------------------------
+  async function renderNotifications() {
+    if (!state.token) { location.hash = '#/auth'; return; }
+    app.innerHTML = renderHeader(t('notifications_title')) + `<p>${t('loading')}</p>`;
+    let list;
+    try {
+      list = await api('/notifications');
+    } catch (e) {
+      app.innerHTML = renderHeader(t('notifications_title')) + `<div class="notice error">${escapeHtml(e.message)}</div>`;
+      return;
+    }
+    const labelFor = (type) => ({
+      NAMED_NODE_FOLLOWUP: t('notif_named_followup'),
+      FOLLOWED_EXPLORATION_NEW_DIRECTION: t('notif_followed_new'),
+    }[type] || type);
+    const linkFor = (n) => {
+      // NAMED_NODE_FOLLOWUP的target_id是node_id，需要跳到所属探索；
+      // FOLLOWED_EXPLORATION_NEW_DIRECTION的target_id本身就是exploration_id。
+      // P0阶段没有"通过node_id反查exploration_id"的接口，简化处理：
+      // 两种类型都尽量跳exploration，NAMED_NODE_FOLLOWUP退化为不可点击。
+      if (n.type === 'FOLLOWED_EXPLORATION_NEW_DIRECTION') return `#/exploration/${n.target_id}`;
+      return null;
+    };
+    app.innerHTML = `
+      ${renderHeader(t('notifications_title'))}
+      <h1>${t('notifications_title')}</h1>
+      ${list.length ? `<button class="ghost" id="btn-mark-all-read">${t('mark_all_read')}</button>` : ''}
+      <div style="margin-top:16px;">
+        ${list.length ? list.map((n) => {
+          const link = linkFor(n);
+          const inner = `${escapeHtml(labelFor(n.type))}<div class="meta">${new Date(n.created_at).toLocaleString()}</div>`;
+          return `<div class="notif-item ${n.read_at ? '' : 'unread'}">${link ? `<a href="${link}" style="color:inherit;text-decoration:none;">${inner}</a>` : inner}</div>`;
+        }).join('') : `<p class="meta">${t('notifications_empty')}</p>`}
+      </div>
+    `;
+    const markBtn = document.getElementById('btn-mark-all-read');
+    if (markBtn) {
+      markBtn.onclick = async () => {
+        try { await api('/notifications/read-all', { method: 'POST' }); renderNotifications(); }
+        catch (e) { /* 静默失败 */ }
+      };
+    }
+    refreshNotifBadge();
   }
 
   function renderMapSection(label, items) {
