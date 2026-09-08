@@ -93,24 +93,85 @@ app.get('/me', auth, (req, res) => {
 
 // ------------------------------------------------------------
 // 公共广场：列出所有PUBLISHED/COLLABORATED的探索，供发现。
-// 访客(未登录)也能浏览——这是PRD核心循环"被他人发现"的关键一环，
-// 之前P0版本完全没做，只有客户端本地记住"自己创建过的"，
-// 导致不同账号之间互相发现不了任何内容。
+// 支持?sort=newest|active|following三种排序/筛选（对应PRD §17"新探索/
+// 正在快速生长/你关注的人"三类入口，"最近出现重要新方向"因为依赖真实
+// Understanding Map语义判断，P0阶段先不做，用question_count代替"生长速度"）。
+// 访客(未登录)也能浏览，但sort=following要求登录，未登录时返回空列表。
 // 匿名发起的探索不暴露initiator_display，只显示"匿名发起"。
 // ------------------------------------------------------------
 app.get('/explorations', authOptional, async (req, res) => {
+  const sort = ['newest', 'active', 'following'].includes(req.query.sort) ? req.query.sort : 'newest';
+  const userId = req.user ? req.user.id : null;
+
+  if (sort === 'following' && !userId) {
+    return res.json([]); // 未登录没有"关注"可言，不报错，直接给空列表
+  }
+
+  let where = `e.state IN ('PUBLISHED', 'COLLABORATED')`;
+  if (sort === 'following') {
+    where += ` AND EXISTS (SELECT 1 FROM follows f WHERE f.follower_id=$1 AND f.target_type='EXPLORATION' AND f.target_id=e.id)`;
+  }
+  const orderBy = sort === 'active' ? 'question_count DESC, e.created_at DESC' : 'e.created_at DESC';
+
   const { rows } = await pool.query(
     `SELECT
        e.id, e.title, e.state, e.identity_mode, e.created_at, e.published_at, e.collaborated_at,
        CASE WHEN e.identity_mode = 'NAMED' THEN u.display_name ELSE NULL END AS initiator_display,
-       (SELECT count(*) FROM nodes n WHERE n.exploration_id = e.id AND n.node_type = 'QUESTION' AND n.status = 'ACTIVE') AS question_count
+       (SELECT count(*) FROM nodes n WHERE n.exploration_id = e.id AND n.node_type = 'QUESTION' AND n.status = 'ACTIVE') AS question_count,
+       CASE WHEN $1::uuid IS NULL THEN false ELSE EXISTS (
+         SELECT 1 FROM follows f WHERE f.follower_id = $1 AND f.target_type = 'EXPLORATION' AND f.target_id = e.id
+       ) END AS followed_by_me
      FROM explorations e
      JOIN users u ON u.id = e.initiator_id
-     WHERE e.state IN ('PUBLISHED', 'COLLABORATED')
-     ORDER BY e.created_at DESC
-     LIMIT 50`
+     WHERE ${where}
+     ORDER BY ${orderBy}
+     LIMIT 50`,
+    [userId]
   );
   res.json(rows);
+});
+
+// ------------------------------------------------------------
+// 关注 / 取关：探索或用户。表结构在schema.sql里早就有(follows表)，
+// 这是第一次真正实现对应的API。
+// ------------------------------------------------------------
+app.post('/follows', auth, async (req, res) => {
+  const { target_type, target_id } = req.body;
+  if (!['USER', 'EXPLORATION'].includes(target_type)) {
+    return res.status(400).json({ error: 'target_type必须是USER或EXPLORATION' });
+  }
+  await pool.query(
+    `INSERT INTO follows (follower_id, target_type, target_id) VALUES ($1,$2,$3)
+     ON CONFLICT (follower_id, target_type, target_id) DO NOTHING`,
+    [req.user.id, target_type, target_id]
+  );
+  res.status(201).json({ ok: true });
+});
+
+app.delete('/follows', auth, async (req, res) => {
+  const { target_type, target_id } = req.query;
+  await pool.query(
+    `DELETE FROM follows WHERE follower_id=$1 AND target_type=$2 AND target_id=$3`,
+    [req.user.id, target_type, target_id]
+  );
+  res.json({ ok: true });
+});
+
+// ------------------------------------------------------------
+// 通知：查看 + 标记已读。写入逻辑在worker.js里（有效追问提交后触发）。
+// ------------------------------------------------------------
+app.get('/notifications', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, type, target_id, read_at, created_at FROM notifications
+     WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+    [req.user.id]
+  );
+  res.json(rows);
+});
+
+app.post('/notifications/read-all', auth, async (req, res) => {
+  await pool.query(`UPDATE notifications SET read_at=now() WHERE user_id=$1 AND read_at IS NULL`, [req.user.id]);
+  res.json({ ok: true });
 });
 
 // ------------------------------------------------------------
@@ -305,10 +366,19 @@ app.get('/explorations/:id', authOptional, async (req, res) => {
     `SELECT * FROM understanding_maps WHERE exploration_id=$1 ORDER BY version DESC LIMIT 1`,
     [req.params.id]
   );
+  let followedByMe = false;
+  if (req.user) {
+    const followRes = await pool.query(
+      `SELECT 1 FROM follows WHERE follower_id=$1 AND target_type='EXPLORATION' AND target_id=$2`,
+      [req.user.id, req.params.id]
+    );
+    followedByMe = followRes.rows.length > 0;
+  }
   res.json({
     exploration,
     nodes: nodesRes.rows,
     understanding_map: mapRes.rows[0] || null,
+    followed_by_me: followedByMe,
   });
 });
 

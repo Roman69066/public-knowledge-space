@@ -187,6 +187,18 @@ async function handleAnswer(task) {
     if (collaborated) log('COLLABORATED触发', `exploration=${pq.exploration_id}`);
     else if (!isThirdParty) log('未触发Collaborated', `submitted_by与initiator是同一account_id`);
 
+    // 通知：对应PRD §16两类场景。放在事务外执行，通知失败不应该让追问本身失败。
+    try {
+      await notifyOnCommit({
+        explorationId: pq.exploration_id,
+        parentNodeId: pq.parent_node_id,
+        submittedBy: pq.submitted_by,
+        newQuestionNodeId: qNode.rows[0].id,
+      });
+    } catch (e) {
+      log('通知发送失败(不影响追问结果)', e.message);
+    }
+
     await enqueue('MAP_UPDATE', {
       explorationId: pq.exploration_id,
       sourceNodeId: qNode.rows[0].id,
@@ -198,6 +210,41 @@ async function handleAnswer(task) {
     throw e;
   } finally {
     client.release();
+  }
+}
+
+// ------------------------------------------------------------
+// 通知逻辑：PRD §16定义的三类场景里，先实现前两个：
+//   1. NAMED_NODE_FOLLOWUP —— 有人对你的署名节点继续追问
+//   2. FOLLOWED_EXPLORATION_NEW_DIRECTION —— 你关注的探索出现新追问
+// "当前认识发生重大修正"那一类需要真实语义判断，P0阶段先不做。
+// ------------------------------------------------------------
+async function notifyOnCommit({ explorationId, parentNodeId, submittedBy, newQuestionNodeId }) {
+  if (parentNodeId) {
+    const parent = await pool.query(
+      `SELECT account_id, public_identity_mode FROM nodes WHERE id=$1`,
+      [parentNodeId]
+    );
+    if (parent.rows.length) {
+      const { account_id, public_identity_mode } = parent.rows[0];
+      if (account_id && public_identity_mode === 'NAMED' && String(account_id) !== String(submittedBy)) {
+        await pool.query(
+          `INSERT INTO notifications (user_id, type, target_id) VALUES ($1, 'NAMED_NODE_FOLLOWUP', $2)`,
+          [account_id, newQuestionNodeId]
+        );
+      }
+    }
+  }
+
+  const followers = await pool.query(
+    `SELECT follower_id FROM follows WHERE target_type='EXPLORATION' AND target_id=$1 AND follower_id != $2`,
+    [explorationId, submittedBy]
+  );
+  for (const row of followers.rows) {
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, target_id) VALUES ($1, 'FOLLOWED_EXPLORATION_NEW_DIRECTION', $2)`,
+      [row.follower_id, explorationId]
+    );
   }
 }
 
